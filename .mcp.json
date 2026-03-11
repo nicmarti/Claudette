@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "claudette": {
+      "command": "claudette",
+      "args": ["serve"]
+    }
+  }
+}

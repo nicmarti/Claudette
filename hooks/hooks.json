@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
+    "PostEdit": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claudette update 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PostGit": [
+      {
+        "matcher": "commit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claudette update 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}

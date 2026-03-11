@@ -1,0 +1,9 @@
+tmp/
+bin/
+/claudette
+.claudette/
+.idea/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
