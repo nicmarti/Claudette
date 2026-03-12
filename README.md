@@ -37,10 +37,16 @@ Verify the installation:
 go version
 ```
 
-Make sure `$GOPATH/bin` is in your `PATH`. Add this to your `~/.zshrc` if needed:
+By default, Go installs binaries to `$HOME/go/bin/`. This directory must be in your `PATH`, otherwise the `claudette` command won't be found when you use it in non-Go projects. Add this to your `~/.zshrc`:
 
 ```bash
-export PATH="$PATH:$(go env GOPATH)/bin"
+export PATH="$PATH:$HOME/go/bin"
+```
+
+Then reload your shell:
+
+```bash
+source ~/.zshrc
 ```
 
 ### 2. Build and install Claudette
