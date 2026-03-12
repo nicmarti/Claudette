@@ -17,19 +17,44 @@ More languages can be added by extending `internal/parser/languages.go` with the
 
 ## Installation
 
-### Prerequisites
+### 1. Install Go (macOS)
 
-- Go 1.26+
-- CGO enabled (required for tree-sitter and SQLite)
-
-### Install the binary
+If you don't have Go installed yet, the easiest way is via Homebrew:
 
 ```bash
+brew install go
+```
+
+Alternatively, download the installer from [go.dev/dl](https://go.dev/dl/) and follow the instructions.
+
+Verify the installation:
+
+```bash
+go version
+```
+
+Make sure `$GOPATH/bin` is in your `PATH`. Add this to your `~/.zshrc` if needed:
+
+```bash
+export PATH="$PATH:$(go env GOPATH)/bin"
+```
+
+### 2. Build and install Claudette
+
+```bash
+git clone https://github.com/nicmarti/Claudette.git
+cd Claudette
 make build
 make install
 ```
 
-This runs `go install ./cmd/claudette`, placing the binary in `$GOPATH/bin`. Make sure `$GOPATH/bin` is in your `PATH`.
+This compiles the binary with CGO (required for tree-sitter and SQLite) and installs it to `$GOPATH/bin`.
+
+Verify:
+
+```bash
+claudette version
+```
 
 ### Register with Claude Code
 
