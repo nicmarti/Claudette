@@ -97,3 +97,22 @@ func EdgeToDict(e *GraphEdge) map[string]any {
 		"line":      e.Line,
 	}
 }
+
+// CompactNodeDict returns a minimal representation of a node for size-constrained responses.
+func CompactNodeDict(n *GraphNode) map[string]any {
+	return map[string]any{
+		"kind":      n.Kind,
+		"name":      n.Name,
+		"file_path": n.FilePath,
+		"line":      n.LineStart,
+	}
+}
+
+// CompactEdgeDict returns a minimal representation of an edge for size-constrained responses.
+func CompactEdgeDict(e *GraphEdge) map[string]any {
+	return map[string]any{
+		"kind":   e.Kind,
+		"source": e.SourceQualified,
+		"target": e.TargetQualified,
+	}
+}

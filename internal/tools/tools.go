@@ -313,6 +313,18 @@ func QueryGraph(pattern, target, repoRoot string) map[string]any {
 	}
 }
 
+// Output size limits for MCP responses.
+// File lists (paths only) are NEVER truncated so Claude can find any file.
+// Only detailed data (nodes, edges, snippets) is capped.
+const (
+	largeChangesetThreshold = 30   // Warn when more changed files than this
+	maxDetailedNodes        = 20   // Max nodes with full details
+	maxDetailedEdges        = 30   // Max edges with full details
+	maxSourceFiles          = 10   // Max files to include source snippets for
+	maxSnippetBytes         = 2000 // Max bytes per source snippet
+	maxTotalSourceLen       = 10000 // ~10KB total for all snippets
+)
+
 // GetReviewContext generates a focused review context from changed files.
 func GetReviewContext(changedFiles []string, maxDepth int, includeSource bool, maxLinesPerFile int, repoRoot, base string) map[string]any {
 	if base == "" {
@@ -345,28 +357,57 @@ func GetReviewContext(changedFiles []string, maxDepth int, includeSource bool, m
 		}
 	}
 
-	absFiles := make([]string, len(changedFiles))
+	// Build absolute paths for ALL changed files (never truncated)
+	absChangedFiles := make([]string, len(changedFiles))
 	for i, f := range changedFiles {
-		absFiles[i] = filepath.Join(root, f)
+		absChangedFiles[i] = filepath.Join(root, f)
 	}
-	impact := store.GetImpactRadius(absFiles, maxDepth)
 
+	impact := store.GetImpactRadius(absChangedFiles, maxDepth)
+
+	// Keep impacted files as relative paths to save space.
+	// The repo_root is provided in the response so Claude can resolve full paths.
+	relImpactedFiles := make([]string, len(impact.ImpactedFiles))
+	for i, f := range impact.ImpactedFiles {
+		if filepath.IsAbs(f) {
+			rel, err := filepath.Rel(root, f)
+			if err == nil {
+				relImpactedFiles[i] = rel
+			} else {
+				relImpactedFiles[i] = f
+			}
+		} else {
+			relImpactedFiles[i] = f
+		}
+	}
+
+	// Detailed nodes/edges use compact format and are capped to control response size
 	changedDicts := make([]any, 0, len(impact.ChangedNodes))
-	for _, n := range impact.ChangedNodes {
-		changedDicts = append(changedDicts, graph.NodeToDict(n))
+	for i, n := range impact.ChangedNodes {
+		if i >= maxDetailedNodes {
+			break
+		}
+		changedDicts = append(changedDicts, graph.CompactNodeDict(n))
 	}
 	impactedDicts := make([]any, 0, len(impact.ImpactedNodes))
-	for _, n := range impact.ImpactedNodes {
-		impactedDicts = append(impactedDicts, graph.NodeToDict(n))
+	for i, n := range impact.ImpactedNodes {
+		if i >= maxDetailedNodes {
+			break
+		}
+		impactedDicts = append(impactedDicts, graph.CompactNodeDict(n))
 	}
 	edgeDicts := make([]any, 0, len(impact.Edges))
-	for _, e := range impact.Edges {
-		edgeDicts = append(edgeDicts, graph.EdgeToDict(e))
+	for i, e := range impact.Edges {
+		if i >= maxDetailedEdges {
+			break
+		}
+		edgeDicts = append(edgeDicts, graph.CompactEdgeDict(e))
 	}
 
 	context := map[string]any{
-		"changed_files":  changedFiles,
-		"impacted_files": impact.ImpactedFiles,
+		"repo_root":      root,
+		"changed_files":  absChangedFiles,
+		"impacted_files": relImpactedFiles,
 		"graph": map[string]any{
 			"changed_nodes":  changedDicts,
 			"impacted_nodes": impactedDicts,
@@ -376,23 +417,38 @@ func GetReviewContext(changedFiles []string, maxDepth int, includeSource bool, m
 
 	if includeSource {
 		snippets := make(map[string]string)
-		for _, relPath := range changedFiles {
-			fullPath := filepath.Join(root, relPath)
+		totalSourceLen := 0
+		sourceFiles := absChangedFiles
+		if len(sourceFiles) > maxSourceFiles {
+			sourceFiles = sourceFiles[:maxSourceFiles]
+		}
+		for _, fullPath := range sourceFiles {
+			relPath, _ := filepath.Rel(root, fullPath)
+			if totalSourceLen >= maxTotalSourceLen {
+				snippets[relPath] = "(skipped: output size limit reached)"
+				continue
+			}
 			data, err := os.ReadFile(fullPath)
 			if err != nil {
 				snippets[relPath] = "(could not read file)"
 				continue
 			}
 			lines := strings.Split(string(data), "\n")
+			var snippet string
 			if len(lines) > maxLinesPerFile {
-				snippets[relPath] = extractRelevantLines(lines, impact.ChangedNodes, fullPath)
+				snippet = extractRelevantLines(lines, impact.ChangedNodes, fullPath)
 			} else {
 				var numbered []string
 				for i, line := range lines {
 					numbered = append(numbered, fmt.Sprintf("%d: %s", i+1, line))
 				}
-				snippets[relPath] = strings.Join(numbered, "\n")
+				snippet = strings.Join(numbered, "\n")
 			}
+			if len(snippet) > maxSnippetBytes {
+				snippet = snippet[:maxSnippetBytes] + "\n... (truncated)"
+			}
+			snippets[relPath] = snippet
+			totalSourceLen += len(snippet)
 		}
 		context["source_snippets"] = snippets
 	}
@@ -400,8 +456,21 @@ func GetReviewContext(changedFiles []string, maxDepth int, includeSource bool, m
 	guidance := generateReviewGuidance(impact, changedFiles)
 	context["review_guidance"] = guidance
 
-	summary := fmt.Sprintf("Review context for %d changed file(s):\n  - %d directly changed nodes\n  - %d impacted nodes in %d files\n\nReview guidance:\n%s",
-		len(changedFiles), len(impact.ChangedNodes), len(impact.ImpactedNodes), len(impact.ImpactedFiles), guidance)
+	// Build summary
+	summary := fmt.Sprintf("Review context for %d changed file(s):\n  - %d changed files (absolute paths provided)\n  - %d directly changed nodes (showing %d)\n  - %d impacted files (absolute paths provided)\n  - %d impacted nodes (showing %d)\n  - %d edges (showing %d)",
+		len(changedFiles),
+		len(absChangedFiles),
+		len(impact.ChangedNodes), len(changedDicts),
+		len(relImpactedFiles),
+		len(impact.ImpactedNodes), len(impactedDicts),
+		len(impact.Edges), len(edgeDicts))
+
+	// Warn on large changesets
+	if len(changedFiles) > largeChangesetThreshold {
+		summary += fmt.Sprintf("\n\n  WARNING: Large changeset (%d files). Consider splitting into smaller PRs for more effective reviews.", len(changedFiles))
+	}
+
+	summary += fmt.Sprintf("\n\nReview guidance:\n%s", guidance)
 
 	return map[string]any{
 		"status":  "ok",
