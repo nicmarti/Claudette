@@ -181,6 +181,33 @@ To add a new language, edit `internal/parser/languages.go` and add:
 3. Node type mappings in `ClassTypes`, `FunctionTypes`, `ImportTypes`, and `CallTypes`
 4. A test fixture in `testdata/`
 
+## FAQ
+
+### How does Claudette compare to LSP-based tools like Serena?
+
+[Serena](https://github.com/oraios/serena) and Claudette solve the same problem — giving AI structural understanding of code — but with fundamentally different approaches.
+
+**Serena** uses the **Language Server Protocol** (the same protocol your IDE uses for "go to definition" and "find references"). It gets precise, type-aware semantic analysis across 30+ languages, and can even edit code at the symbol level.
+
+**Claudette** uses **Tree-sitter** to parse code into a persistent **knowledge graph** stored in SQLite. It trades semantic depth for speed, simplicity, and zero dependencies.
+
+| | Claudette (Tree-sitter + Graph) | Serena (LSP) |
+|---|---|---|
+| **Languages** | 4 (Go, Python, JS, TS) | 30+ |
+| **Semantic precision** | Structural (names, positions, calls by name) | Deep (type resolution, exact references, refactoring) |
+| **"Find all callers"** | Approximate (function name matching) | Exact (resolves types and overloads) |
+| **Persistence** | Yes, SQLite graph on disk | No, in-memory in the LSP server |
+| **Blast-radius analysis** | Pre-computed BFS on the graph | Computed on the fly |
+| **Runtime dependencies** | None (single Go binary) | Python + LSP servers per language |
+| **Startup time** | Instant (reads SQLite) | Slow (LSP must index the project) |
+| **Broken/incomplete code** | Tolerant (Tree-sitter) | Fragile (LSP may fail) |
+| **Code editing** | No (read-only, provides context) | Yes (`insert_after_symbol`, `replace_symbol`) |
+| **Installation** | `go install`, single binary | Python + uvx + LSP servers |
+
+**When to use Claudette:** medium-sized Go/TypeScript/Python/JS projects where a lightweight structural map is enough to guide Claude to the right files and reduce tokens.
+
+**When to use Serena:** large multi-language projects where semantic precision matters (complex refactoring, type resolution, polymorphism).
+
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
