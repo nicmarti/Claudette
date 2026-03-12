@@ -1,8 +1,12 @@
+<p align="center">
+  <img src="docs/logo_claudette.jpg" alt="Claudette" width="600" />
+</p>
+
 <h1 align="center">Claudette</h1>
 
 Claudette builds a structural knowledge graph of your codebase using [Tree-sitter](https://tree-sitter.github.io/tree-sitter/), tracks changes incrementally, and gives Claude precise context so it reads only what matters instead of re-reading your entire codebase on every task.
 
-Based on the [code-review-graph](https://github.com/tirth8205/code-review-graph) project by Tirth Kanani, Claudette is the rewritten in Go for fast, single-binary deployment, implemented by Nicolas Martignole. 
+Based on the [code-review-graph](https://github.com/tirth8205/code-review-graph) project by Tirth Kanani, Claudette is the rewritten in Go for fast, single-binary deployment, implemented by [Nicolas Martignole](https://www.touilleur-express.fr).
 
 ## Supported Languages
 
