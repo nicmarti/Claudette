@@ -17,6 +17,7 @@ var testFilePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`.*\.test\.[jt]sx?$`),
 	regexp.MustCompile(`.*\.spec\.[jt]sx?$`),
 	regexp.MustCompile(`.*_test\.go$`),
+	regexp.MustCompile(`.*Tests?\.java$`),
 	regexp.MustCompile(`tests?/`),
 }
 

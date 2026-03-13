@@ -15,6 +15,7 @@ func TestDetectLanguage(t *testing.T) {
 		{"bar.js", "javascript"},
 		{"baz.ts", "typescript"},
 		{"main.go", "go"},
+		{"Main.java", "java"},
 		{"readme.md", ""},
 		{"data.json", ""},
 	}
@@ -192,6 +193,80 @@ func TestParseTypeScriptFile(t *testing.T) {
 	}
 }
 
+func TestParseJavaFile(t *testing.T) {
+	path := filepath.Join("..", "..", "testdata", "sample.java")
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skip("testdata/sample.java not found")
+	}
+
+	cp := NewCodeParser()
+	nodes, edges, err := cp.ParseFile(path)
+	if err != nil {
+		t.Fatalf("ParseFile: %v", err)
+	}
+
+	if len(nodes) == 0 {
+		t.Fatal("expected nodes, got none")
+	}
+	if len(edges) == 0 {
+		t.Fatal("expected edges, got none")
+	}
+
+	var hasFile, hasClass, hasFunc, hasTest bool
+	for _, n := range nodes {
+		switch n.Kind {
+		case "File":
+			hasFile = true
+		case "Class":
+			hasClass = true
+		case "Function":
+			hasFunc = true
+		case "Test":
+			hasTest = true
+		}
+	}
+
+	if !hasFile {
+		t.Error("expected a File node")
+	}
+	if !hasClass {
+		t.Error("expected Class nodes (Animal, Dog, Speakable, AnimalType)")
+	}
+	if !hasFunc {
+		t.Error("expected Function nodes (speak, greet, constructors)")
+	}
+	if !hasTest {
+		t.Error("expected a Test node (testDogSpeak via @Test)")
+	}
+
+	var hasContains, hasImports, hasCalls, hasInherits bool
+	for _, e := range edges {
+		switch e.Kind {
+		case "CONTAINS":
+			hasContains = true
+		case "IMPORTS_FROM":
+			hasImports = true
+		case "CALLS":
+			hasCalls = true
+		case "INHERITS":
+			hasInherits = true
+		}
+	}
+
+	if !hasContains {
+		t.Error("expected CONTAINS edges")
+	}
+	if !hasImports {
+		t.Error("expected IMPORTS_FROM edges (java.util.List)")
+	}
+	if !hasCalls {
+		t.Error("expected CALLS edges (animal.speak(), new Dog())")
+	}
+	if !hasInherits {
+		t.Error("expected INHERITS edges (Dog -> Animal, Animal -> Speakable)")
+	}
+}
+
 func TestIsTestFunction(t *testing.T) {
 	tests := []struct {
 		name string
@@ -223,6 +298,9 @@ func TestIsTestFile(t *testing.T) {
 		{"main.spec.js", true},
 		{"main_test.go", true},
 		{"tests/test_foo.py", true},
+		{"MyServiceTest.java", true},
+		{"MyServiceTests.java", true},
+		{"src/test/java/FooTest.java", true},
 		{"main.py", false},
 		{"main.go", false},
 	}

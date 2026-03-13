@@ -40,13 +40,13 @@ internal/
   visualization/              D3.js HTML graph generator
 skills/                       Claude Code skill definitions (SKILL.md files)
 hooks/                        Claude Code hooks (PostEdit, PostGit auto-update)
-testdata/                     Test fixtures (sample.go, sample.py, sample.ts)
+testdata/                     Test fixtures (sample.go, sample.java, sample.py, sample.ts)
 docs/                         Full documentation
 ```
 
 ## Supported Languages
 
-Only 4 languages currently: **Python** (.py), **JavaScript** (.js/.jsx), **TypeScript** (.ts/.tsx), **Go** (.go).
+Only 5 languages currently: **Python** (.py), **JavaScript** (.js/.jsx), **TypeScript** (.ts/.tsx), **Go** (.go), **Java** (.java).
 
 To add a new language: edit `internal/parser/languages.go` — add extension mapping, tree-sitter grammar, and node type mappings (ClassTypes, FunctionTypes, ImportTypes, CallTypes). Add a test fixture in `testdata/`.
 

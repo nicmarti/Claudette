@@ -3,6 +3,7 @@ package parser
 import (
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
+	"github.com/smacker/go-tree-sitter/java"
 	"github.com/smacker/go-tree-sitter/javascript"
 	"github.com/smacker/go-tree-sitter/python"
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
@@ -15,7 +16,8 @@ var ExtensionToLanguage = map[string]string{
 	".jsx": "javascript",
 	".ts":  "typescript",
 	".tsx": "typescript",
-	".go":  "go",
+	".go":   "go",
+	".java": "java",
 }
 
 // languageFunc maps language names to tree-sitter language objects.
@@ -24,6 +26,7 @@ var languageFunc = map[string]*sitter.Language{
 	"javascript": javascript.GetLanguage(),
 	"typescript": typescript.GetLanguage(),
 	"go":         golang.GetLanguage(),
+	"java":       java.GetLanguage(),
 }
 
 // GetLanguage returns the tree-sitter Language for a given name, or nil.
@@ -37,6 +40,7 @@ var ClassTypes = map[string][]string{
 	"javascript": {"class_declaration", "class"},
 	"typescript": {"class_declaration", "class"},
 	"go":         {"type_declaration"},
+	"java":       {"class_declaration", "interface_declaration", "enum_declaration"},
 }
 
 // FunctionTypes maps language to tree-sitter node types for function definitions.
@@ -45,6 +49,7 @@ var FunctionTypes = map[string][]string{
 	"javascript": {"function_declaration", "method_definition", "arrow_function"},
 	"typescript": {"function_declaration", "method_definition", "arrow_function"},
 	"go":         {"function_declaration", "method_declaration"},
+	"java":       {"method_declaration", "constructor_declaration"},
 }
 
 // ImportTypes maps language to tree-sitter node types for import statements.
@@ -53,6 +58,7 @@ var ImportTypes = map[string][]string{
 	"javascript": {"import_statement"},
 	"typescript": {"import_statement"},
 	"go":         {"import_declaration"},
+	"java":       {"import_declaration"},
 }
 
 // CallTypes maps language to tree-sitter node types for call expressions.
@@ -61,4 +67,5 @@ var CallTypes = map[string][]string{
 	"javascript": {"call_expression", "new_expression"},
 	"typescript": {"call_expression", "new_expression"},
 	"go":         {"call_expression"},
+	"java":       {"method_invocation", "object_creation_expression"},
 }
