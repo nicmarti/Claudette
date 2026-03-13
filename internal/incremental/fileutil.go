@@ -21,6 +21,7 @@ var DefaultIgnorePatterns = []string{
 	"build/**",
 	".next/**",
 	"target/**",
+	".gradle/**",
 	"*.min.js",
 	"*.min.css",
 	"*.map",

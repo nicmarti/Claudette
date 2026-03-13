@@ -152,6 +152,9 @@ func (cp *CodeParser) extractFromTree(
 			name := getName(child, language, "function", source)
 			if name != "" {
 				isTest := IsTestFunction(name)
+				if language == "java" && !isTest {
+					isTest = hasTestAnnotation(child, source)
+				}
 				kind := "Function"
 				if isTest {
 					kind = "Test"
@@ -291,6 +294,24 @@ func getReturnType(node *sitter.Node, language string, source []byte) string {
 			return child.Content(source)
 		}
 	}
+	// Java: return type is a direct child with specific type names
+	if language == "java" {
+		javaRetTypes := map[string]bool{
+			"type_identifier":      true,
+			"void_type":            true,
+			"generic_type":         true,
+			"array_type":           true,
+			"integral_type":        true,
+			"floating_point_type":  true,
+			"boolean_type":         true,
+		}
+		for i := 0; i < int(node.ChildCount()); i++ {
+			child := node.Child(i)
+			if javaRetTypes[child.Type()] {
+				return child.Content(source)
+			}
+		}
+	}
 	// Python: -> annotation
 	if language == "python" {
 		for i := 0; i < int(node.ChildCount()); i++ {
@@ -346,6 +367,26 @@ func getBases(node *sitter.Node, language string, source []byte) []string {
 										bases = append(bases, f.Content(source))
 									}
 								}
+							}
+						}
+					}
+				}
+			}
+		}
+	case "java":
+		for i := 0; i < int(node.ChildCount()); i++ {
+			child := node.Child(i)
+			switch child.Type() {
+			case "superclass", "super_interfaces", "extends_interfaces":
+				for j := 0; j < int(child.ChildCount()); j++ {
+					sub := child.Child(j)
+					if sub.Type() == "type_identifier" {
+						bases = append(bases, sub.Content(source))
+					} else if sub.Type() == "type_list" {
+						for k := 0; k < int(sub.ChildCount()); k++ {
+							typ := sub.Child(k)
+							if typ.Type() == "type_identifier" {
+								bases = append(bases, typ.Content(source))
 							}
 						}
 					}
@@ -410,6 +451,14 @@ func extractImport(node *sitter.Node, language string, source []byte) []string {
 				}
 			}
 		}
+	case "java":
+		for i := 0; i < int(node.ChildCount()); i++ {
+			child := node.Child(i)
+			if child.Type() == "scoped_identifier" {
+				imports = append(imports, child.Content(source))
+				break
+			}
+		}
 	default:
 		imports = append(imports, text)
 	}
@@ -421,6 +470,34 @@ func getCallName(node *sitter.Node, language string, source []byte) string {
 		return ""
 	}
 	first := node.Child(0)
+
+	// Java method_invocation: obj.method(args) or method(args)
+	if node.Type() == "method_invocation" {
+		foundDot := false
+		for i := 0; i < int(node.ChildCount()); i++ {
+			child := node.Child(i)
+			if child.Type() == "." {
+				foundDot = true
+			} else if foundDot && child.Type() == "identifier" {
+				return child.Content(source)
+			}
+		}
+		if first.Type() == "identifier" {
+			return first.Content(source)
+		}
+		return ""
+	}
+
+	// Java object_creation_expression: new ClassName(args)
+	if node.Type() == "object_creation_expression" {
+		for i := 0; i < int(node.ChildCount()); i++ {
+			child := node.Child(i)
+			if child.Type() == "type_identifier" {
+				return child.Content(source)
+			}
+		}
+		return ""
+	}
 
 	// Simple call: func_name(args)
 	if first.Type() == "identifier" {
@@ -452,6 +529,24 @@ func getCallName(node *sitter.Node, language string, source []byte) string {
 	}
 
 	return ""
+}
+
+func hasTestAnnotation(node *sitter.Node, source []byte) bool {
+	for i := 0; i < int(node.ChildCount()); i++ {
+		child := node.Child(i)
+		if child.Type() == "modifiers" {
+			for j := 0; j < int(child.ChildCount()); j++ {
+				mod := child.Child(j)
+				if mod.Type() == "marker_annotation" || mod.Type() == "annotation" {
+					text := mod.Content(source)
+					if text == "@Test" || strings.HasSuffix(text, ".Test") {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 func toSet(items []string) map[string]bool {
